@@ -3,11 +3,11 @@ LABEL maintainer="adam.schultz@live.com"
 
 #Upgrade container and add needed tools from debian
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -qq -y \
-      cron curl git supervisor zip unzip \
-    && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get clean
+	&& DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
+	&& DEBIAN_FRONTEND=noninteractive apt-get install -qq -y \
+		cron curl git supervisor zip unzip vim nano \
+	&& DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
+	&& DEBIAN_FRONTEND=noninteractive apt-get clean
 
 #Install php extension installer from https://github.com/mlocati/docker-php-extension-installer
 ADD https://raw.githubusercontent.com/mlocati/docker-php-extension-installer/master/install-php-extensions /usr/local/bin/
@@ -15,9 +15,11 @@ RUN chmod 755 /usr/local/bin/install-php-extensions
 
 #Install needed php extensions
 RUN install-php-extensions \
-      bcmath bz2 calendar exif gd iconv intl mbstring memcached \
-      mysqli opcache pdo_mysql redis soap xsl zip sockets apcu \
-      pcntl imagick
+	bcmath bz2 calendar exif gd iconv intl mbstring memcached \
+	mysqli opcache pdo_mysql redis soap xsl zip sockets apcu \
+	pcntl imagick
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 #Add users/ids to match file system
 RUN groupadd -g 996 nginx
