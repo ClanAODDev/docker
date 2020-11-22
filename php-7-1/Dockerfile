@@ -22,10 +22,10 @@ RUN install-php-extensions \
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 #Add users/ids to match file system
-RUN groupadd -g 996 nginx
-RUN useradd -u 997 -g nginx -s /usr/sbin/nologin nginx
-RUN groupadd -g 1004 nginx-data
-RUN useradd -u 1004 -g nginx-data -s /usr/sbin/nologin nginx-data
+RUN groupadd -g 1001 nginx
+RUN useradd -u 1001 -g nginx -s /usr/sbin/nologin nginx
+RUN groupadd -g 1002 nginx-data
+RUN useradd -u 1002 -g nginx-data -s /usr/sbin/nologin nginx-data
 
 #Add logging directory for php-fpm (better if this is mounted to system
 RUN install -d -m 0644 -o nginx -g nginx /var/log/php-fpm/
