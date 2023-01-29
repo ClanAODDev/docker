@@ -17,7 +17,7 @@ RUN chmod 755 /usr/local/bin/install-php-extensions
 RUN install-php-extensions \
 	bcmath bz2 calendar exif gd iconv intl mbstring \
 	mysqli opcache pdo_mysql soap xsl zip sockets apcu \
-	pcntl imagick gmp
+	pcntl imagick gmp mysqlnd
 #removed memcached, we're not running the daemon in supervisor anyway
 #removed redis
 

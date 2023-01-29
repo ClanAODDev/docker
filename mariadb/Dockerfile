@@ -1,4 +1,4 @@
-FROM mariadb:10.4
+FROM mariadb:10.6
 LABEL maintainer="adam.schultz@live.com"
 
 #Add users/ids to match file system
@@ -8,5 +8,5 @@ RUN groupdel sudo || true
 RUN groupadd -g 27 mysql
 RUN useradd -u 27 -g mysql -s /usr/sbin/nologin mysql
 
-#Add logging directory for php-fpm (better if this is mounted to system
+#Add logging directory for mariadb (better if this is mounted to system
 RUN install -d -m 0644 -o mysql -g mysql /var/log/mysql/
