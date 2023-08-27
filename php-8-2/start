@@ -1,0 +1,89 @@
+#!/bin/bash
+
+path=/usr/share/nginx/docker/php-8-2
+name=clanaod-php-fpm-8-2
+port=9082
+version=8.2-fpm
+
+#if (( UID != 0 )); then
+#	exec sudo -E "$0" ${1+"$@"}
+#fi
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]
+do
+	key="$1"
+	case $key in
+		-b|--build)
+			shift #argument
+			docker pull php:$version
+			docker build -t clanaod/php:$version $path
+			exit
+			;;
+		-r|--run)
+			shift #argument
+			docker kill $name
+			docker rm $name
+			docker run --name $name -d --restart unless-stopped \
+				-v $path/data/php-fpm.d/:/usr/local/etc/php-fpm.d/ \
+				-v $path/data/fpm-cache/:/usr/local/php-fpm-cache/ \
+				-v $path/data/cron.d/:/etc/cron.d/ \
+				-v /usr/share/nginx/:/usr/share/nginx \
+				-v /dev/log:/dev/log \
+				-v /etc/timezone:/etc/timezone:ro \
+				-v /etc/localtime:/etc/localtime:ro \
+				--network host \
+				-p $port:$port/tcp \
+				clanaod/php:$version
+			exit
+			;;
+		-e|--exec)
+			shift #argument
+			user=root
+			[ $# -gt 0 ] && user=$1 && shift
+			[ $# -gt 0 ] && docker exec -it -u $user $name "$@" || docker exec -it -u $user $name /bin/bash
+			exit
+			;;
+		-s|--start)
+			docker start $name
+			exit
+			;;
+		-p|--stop)
+			docker stop $name
+			exit
+			;;
+		-t|--restart)
+			docker restart $name
+			exit
+			;;
+		-a|--bash)
+			docker run --rm -it --entrypoint /bin/bash \
+				-v $path/data/php-fpm.d/:/usr/local/etc/php-fpm.d/ \
+				-v $path/data/fpm-cache/:/usr/local/php-fpm-cache/ \
+				-v $path/data/cron.d/:/etc/cron.d/ \
+				-v /usr/share/nginx/:/usr/share/nginx/ \
+				-v /dev/log:/dev/log \
+				-v /etc/timezone:/etc/timezone:ro \
+				-v /etc/localtime:/etc/localtime:ro \
+				--network host \
+				-p $port:$port/tcp \
+				clanaod/php:$version
+			exit
+			;;
+		*)
+			shift #argument
+			script=$(basename $0)
+			echo "$script"
+			echo "    -b|--build        Update upstream and rebuild"
+			echo "    -r|--run          Kill, remove, and start new container"
+			echo "    -e|--exec [user]  Start a bash shell in running container (root by default)"
+			echo "    -s|--start        Start container"
+			echo "    -p|--stop         Stop container"
+			echo "    -t|--restart      Restart container"
+			echo "    -a|--standalone   Start a standalone instance and enter bash shell"
+			POSITIONAL+=("$1") # save it in an array for later
+			exit
+			;;
+	esac
+done
+set -- "${POSITIONAL[@]}"
