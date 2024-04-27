@@ -25,6 +25,7 @@ do
 			docker kill $name
 			docker rm $name
 			docker run --name $name -d --restart unless-stopped \
+				-v $path/data/supervisor/conf.d/:/etc/supervisor/conf.d/ \
 				-v $path/data/php-fpm.d/:/usr/local/etc/php-fpm.d/ \
 				-v $path/data/fpm-cache/:/usr/local/php-fpm-cache/ \
 				-v $path/data/cron.d/:/etc/cron.d/ \
@@ -58,6 +59,7 @@ do
 			;;
 		-a|--bash)
 			docker run --rm -it --entrypoint /bin/bash \
+				-v $path/data/supervisor/conf.d/:/etc/supervisor/conf.d/ \
 				-v $path/data/php-fpm.d/:/usr/local/etc/php-fpm.d/ \
 				-v $path/data/fpm-cache/:/usr/local/php-fpm-cache/ \
 				-v $path/data/cron.d/:/etc/cron.d/ \

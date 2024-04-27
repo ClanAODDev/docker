@@ -1,6 +1,11 @@
 FROM php:8.2-fpm
 LABEL maintainer="adam.schultz@live.com"
 
+ARG NGINX_UID="1001"
+ARG NGINX_GID="1001"
+ARG NGINX_DATA_UID="1002"
+ARG NGINX_DATA_GID="1002"
+
 #Upgrade container and add needed tools from debian
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
 	&& DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
@@ -21,19 +26,26 @@ RUN install-php-extensions \
 #removed memcached, we're not running the daemon in supervisor anyway
 #removed redis
 
+RUN touch /usr/local/etc/php/php.ini
+RUN echo "extension=apcu.so" >> /usr/local/etc/php/php.ini
+RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
+RUN echo "apc.enable=1" >> /usr/local/etc/php/php.ini
+
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 #Add users/ids to match file system
-RUN groupadd -g 1001 nginx
-RUN useradd -u 1001 -g nginx -s /usr/sbin/nologin nginx
-RUN groupadd -g 1002 nginx-data
-RUN useradd -u 1002 -g nginx-data -s /usr/sbin/nologin nginx-data
+RUN groupadd -g ${NGINX_GID} nginx
+RUN useradd -u ${NGINX_UID} -g nginx -s /usr/sbin/nologin nginx
+RUN groupadd -g ${NGINX_DATA_GID} nginx-data
+RUN useradd -u ${NGINX_DATA_UID} -g nginx-data -s /usr/sbin/nologin nginx-data
 
 #Add logging directory for php-fpm (better if this is mounted to system
 RUN install -d -m 0644 -o nginx -g nginx /var/log/php-fpm/
 
 #Copy in supervisor config
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY ./supervisord.conf /etc/supervisor/supervisord.conf
+COPY ./php.supervisord.conf /etc/supervisor/default/php.supervisord.conf
+COPY ./cron.supervisord.conf /etc/supervisor/default/cron.supervisord.conf
 
 #Copy php-fpm config
 COPY ./php-fpm.conf /usr/local/etc/php-fpm.conf
