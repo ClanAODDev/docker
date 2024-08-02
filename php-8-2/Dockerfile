@@ -27,7 +27,7 @@ RUN install-php-extensions \
 #removed redis
 
 RUN touch /usr/local/etc/php/php.ini
-RUN echo "extension=apcu.so" >> /usr/local/etc/php/php.ini
+RUN echo "#extension=apcu.so" >> /usr/local/etc/php/php.ini
 RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
 RUN echo "apc.enable=1" >> /usr/local/etc/php/php.ini
 
