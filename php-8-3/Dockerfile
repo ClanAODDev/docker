@@ -26,10 +26,12 @@ RUN install-php-extensions \
 #removed memcached, we're not running the daemon in supervisor anyway
 #removed redis
 
-RUN touch /usr/local/etc/php/php.ini
-RUN echo "#extension=apcu.so" >> /usr/local/etc/php/php.ini
-RUN echo "apc.enable_cli=1" >> /usr/local/etc/php/php.ini
-RUN echo "apc.enable=1" >> /usr/local/etc/php/php.ini
+RUN { \
+        echo "memory_limit=512M"; \
+        echo ";extension=apcu.so"; \
+        echo "apc.enable_cli=1"; \
+        echo "apc.enable=1"; \
+    } >> /usr/local/etc/php/php.ini
 
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
