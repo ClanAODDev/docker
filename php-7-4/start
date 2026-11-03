@@ -5,6 +5,11 @@ name=clanaod-php-fpm-7-4
 port=9004
 version=7.4-fpm
 
+volumes=
+#volumes+="-v /usr/share/nginx/:/usr/share/nginx/ "
+volumes+="-v /usr/share/nginx/html/:/usr/share/nginx/html/:ro "
+volumes+="-v /usr/share/nginx/forums/:/usr/share/nginx/vb5/:ro "
+
 #if (( UID != 0 )); then
 #	exec sudo -E "$0" ${1+"$@"}
 #fi
@@ -16,8 +21,12 @@ do
 	case $key in
 		-b|--build)
 			shift #argument
-			docker pull php:$version
-			docker build -t clanaod/php:$version $path
+			docker build --pull \
+				--build-arg NGINX_UID="$(id -u nginx)" \
+				--build-arg NGINX_GID="$(id -g nginx)" \
+				--build-arg NGINX_DATA_UID="$(id -u nginx-data)" \
+				--build-arg NGINX_DATA_GID="$(id -g nginx-data)" \
+				-t clanaod/php:$version $path
 			exit
 			;;
 		-r|--run)
@@ -28,7 +37,7 @@ do
 				-v $path/data/php-fpm.d/:/usr/local/etc/php-fpm.d/ \
 				-v $path/data/fpm-cache/:/usr/local/php-fpm-cache/ \
 				-v $path/data/cron.d/:/etc/cron.d/ \
-				-v /usr/share/nginx/:/usr/share/nginx \
+				$volumes \
 				-v /dev/log:/dev/log \
 				-v /etc/timezone:/etc/timezone:ro \
 				-v /etc/localtime:/etc/localtime:ro \
@@ -61,7 +70,7 @@ do
 				-v $path/data/php-fpm.d/:/usr/local/etc/php-fpm.d/ \
 				-v $path/data/fpm-cache/:/usr/local/php-fpm-cache/ \
 				-v $path/data/cron.d/:/etc/cron.d/ \
-				-v /usr/share/nginx/:/usr/share/nginx/ \
+				$volumes \
 				-v /dev/log:/dev/log \
 				-v /etc/timezone:/etc/timezone:ro \
 				-v /etc/localtime:/etc/localtime:ro \
