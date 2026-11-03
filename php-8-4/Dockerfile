@@ -53,7 +53,7 @@ RUN apt-get update && \
         php8.4-xsl \
         php8.4-zip \
         php8.4-apcu \
-        php8.4-imagick && \
+        && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Composer 2 from the official image
