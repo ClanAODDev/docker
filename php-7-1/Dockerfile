@@ -1,47 +1,75 @@
-FROM php:7.1-fpm
+FROM debian:12-slim
 LABEL maintainer="adam.schultz@live.com"
 
-#Upgrade container and add needed tools from debian
-RUN DEBIAN_FRONTEND=noninteractive apt-get update -q \
-	&& DEBIAN_FRONTEND=noninteractive apt-get upgrade -qq -y \
-	&& DEBIAN_FRONTEND=noninteractive apt-get install -qq -y \
-		cron curl git supervisor zip unzip vim nano \
-	&& DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
-	&& DEBIAN_FRONTEND=noninteractive apt-get clean
+ENV DEBIAN_FRONTEND=noninteractive
 
-#Install php extension installer from https://github.com/mlocati/docker-php-extension-installer
-ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
-RUN chmod 755 /usr/local/bin/install-php-extensions
+ARG NGINX_UID=1001
+ARG NGINX_GID=1001
+ARG NGINX_DATA_UID=1002
+ARG NGINX_DATA_GID=1002
 
-#Install needed php extensions
-RUN install-php-extensions \
-	bcmath bz2 calendar exif gd iconv intl mbstring \
-	mysqli opcache pdo_mysql soap xsl zip sockets apcu \
-	pcntl imagick
-#removed memcached, we're not running the daemon in supervisor anyway
-#removed redis
+# Base utilities and repository support
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates curl gnupg \
+        apt-transport-https \
+        cron git supervisor \
+        zip unzip vim nano && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+# Add the third-party PHP APT repository
+RUN curl -fsSL \
+        https://packages.sury.org/php/apt.gpg \
+        -o /usr/share/keyrings/debsuryorg-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ bookworm main" \
+        > /etc/apt/sources.list.d/php.list
 
-#Add users/ids to match file system
-RUN groupadd -g 1001 nginx
-RUN useradd -u 1001 -g nginx -s /usr/sbin/nologin nginx
-RUN groupadd -g 1002 nginx-data
-RUN useradd -u 1002 -g nginx-data -s /usr/sbin/nologin nginx-data
+# PHP 7.1 and extensions
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        php7.1-fpm \
+        php7.1-cli \
+        php7.1-bcmath \
+        php7.1-bz2 \
+        php7.1-gd \
+        php7.1-intl \
+        php7.1-mbstring \
+        php7.1-mysql \
+        php7.1-opcache \
+        php7.1-soap \
+        php7.1-xml \
+        php7.1-zip \
+        php7.1-apcu \
+        php7.1-imagick && \
+    rm -rf /var/lib/apt/lists/*
 
-#Add logging directory for php-fpm (better if this is mounted to system
-RUN install -d -m 0644 -o nginx -g nginx /var/log/php-fpm/
+# Match filesystem users
+RUN groupadd -g ${NGINX_GID} nginx && \
+    useradd -u ${NGINX_UID} -g nginx \
+        -s /usr/sbin/nologin nginx && \
+    groupadd -g ${NGINX_DATA_GID} nginx-data && \
+    useradd -u ${NGINX_DATA_UID} -g nginx-data \
+        -s /usr/sbin/nologin nginx-data
 
-#Copy in supervisor config
-COPY ./supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN install -d -m 0755 -o nginx -g nginx \
+        /var/log/php-fpm /usr/share/nginx
 
-#Copy php-fpm config
-COPY ./php-fpm.conf /usr/local/etc/php-fpm.conf
-#Note: Pool configurations need to be mounted to /usr/local/etc/php-fpm-d and will define listen port
+COPY ./supervisord.conf \
+    /etc/supervisor/conf.d/supervisord.conf
 
-#Replace upstream default/working director
-RUN install -d -m 0644 -o nginx -g nginx /usr/share/nginx/
+# Debian PHP-FPM configuration paths differ
+# from those in the official PHP image.
+# Adapt your existing configuration accordingly.
+COPY ./php-fpm.conf \
+    /etc/php/7.1/fpm/php-fpm.conf
+
+# Expose PHP 7.1 using unversioned executable names
+RUN update-alternatives --set php /usr/bin/php7.1 && \
+    ln -s /usr/sbin/php-fpm7.1 /usr/local/sbin/php-fpm && \
+    php -v && \
+    php-fpm -v
+
 WORKDIR /usr/share/nginx
 
-#Replace upstream entry point
-ENTRYPOINT ["/usr/bin/supervisord","-c","/etc/supervisor/supervisord.conf"]
+ENTRYPOINT ["/usr/bin/supervisord", \
+            "-c", "/etc/supervisor/supervisord.conf"]

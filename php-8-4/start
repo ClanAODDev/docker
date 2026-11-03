@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+PHP_VERSION="8.4"
+IMAGE_VERSION="${PHP_VERSION}-fpm"
+IMAGE="clanaod/php:${IMAGE_VERSION}"
+
+NAME="clanaod-php-fpm-${PHP_VERSION//./-}"
+PATH_BASE="/usr/share/nginx/docker/php-${PHP_VERSION//./-}"
+
+NGINX_ROOT="/usr/share/nginx"
+
+# Shared Docker arguments
+VOLUMES=(
+    "${PATH_BASE}/data/supervisor/conf.d:/etc/supervisor/conf.d"
+    "${PATH_BASE}/data/fpm-pool.d:/etc/php/${PHP_VERSION}/fpm/pool.d"
+    "${PATH_BASE}/data/fpm-cache:/var/cache/php-fpm"
+    "${PATH_BASE}/data/cron.d:/etc/cron.d"
+    "${NGINX_ROOT}:${NGINX_ROOT}"
+    "/dev/log:/dev/log"
+    "/etc/timezone:/etc/timezone:ro"
+    "/etc/localtime:/etc/localtime:ro"
+)
+
+DOCKER_ARGS=(
+    --network host
+)
+
+for volume in "${VOLUMES[@]}"; do
+    DOCKER_ARGS+=(-v "$volume")
+done
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <command> [args]
+
+Commands:
+  -b, --build             Pull upstream image and rebuild
+  -r, --run               Replace and start the container
+  -e, --exec [user] [cmd] Execute command as user (default: root)
+  -s, --start             Start the container
+  -p, --stop              Stop the container
+  -t, --restart           Restart the container
+  -a, --bash              Run standalone interactive shell
+  -h, --help              Show this help
+EOF
+}
+
+container_exists() {
+    docker container inspect "$NAME" >/dev/null 2>&1
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+build() {
+    docker build --pull \
+        --build-arg "NGINX_UID=$(id -u nginx)" \
+        --build-arg "NGINX_GID=$(id -g nginx)" \
+        --build-arg "NGINX_DATA_UID=$(id -u nginx-data)" \
+        --build-arg "NGINX_DATA_GID=$(id -g nginx-data)" \
+        -t "$IMAGE" "$PATH_BASE"
+}
+
+run() {
+    if container_exists; then
+        docker rm -f "$NAME"
+    fi
+
+    docker run \
+        --name "$NAME" \
+        --detach \
+        --restart unless-stopped \
+        "${DOCKER_ARGS[@]}" \
+        "$IMAGE"
+}
+
+exec_container() {
+    local user="${1:-root}"
+
+    if (( $# > 0 )); then
+        shift
+    fi
+
+    if (( $# == 0 )); then
+        set -- /bin/bash
+    fi
+
+    docker exec -it -u "$user" "$NAME" "$@"
+}
+
+start() {
+    docker start "$NAME"
+}
+
+stop() {
+    docker stop "$NAME"
+}
+
+restart() {
+    docker restart "$NAME"
+}
+
+standalone() {
+    docker run --rm -it \
+        --entrypoint /bin/bash \
+        "${DOCKER_ARGS[@]}" \
+        "$IMAGE"
+}
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+main() {
+    local command="${1:---help}"
+
+    if (( $# > 0 )); then
+        shift
+    fi
+
+    case "$command" in
+        -b|--build)
+            build
+            ;;
+        -r|--run)
+            run
+            ;;
+        -e|--exec)
+            exec_container "$@"
+            ;;
+        -s|--start)
+            start
+            ;;
+        -p|--stop)
+            stop
+            ;;
+        -t|--restart)
+            restart
+            ;;
+        -a|--bash|--standalone)
+            standalone
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            printf 'Unknown command: %s\n\n' "$command" >&2
+            usage >&2
+            return 1
+            ;;
+    esac
+}
+
+main "$@"
