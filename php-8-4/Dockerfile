@@ -1,5 +1,5 @@
 FROM composer:2 AS composer
-FROM debian:12-slim
+FROM debian:13-slim
 LABEL maintainer="adam.schultz@live.com"
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -23,8 +23,9 @@ RUN curl -fsSL \
         https://packages.sury.org/debsuryorg-archive-keyring.deb \
         -o /tmp/debsuryorg-archive-keyring.deb && \
     apt-get install -y /tmp/debsuryorg-archive-keyring.deb && \
-    rm -f /tmp/debsuryorg-archive-keyring.deb && \
-    echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ bookworm main" \
+    rm -f /tmp/debsuryorg-archive-keyring.deb
+RUN . /etc/os-release && \
+    echo "deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ ${VERSION_CODENAME} main" \
         > /etc/apt/sources.list.d/php.list
 
 # PHP 8.4 and extensions
@@ -66,10 +67,12 @@ RUN groupadd -g ${NGINX_GID} nginx && \
     useradd -u ${NGINX_DATA_UID} -g nginx-data \
         -s /usr/sbin/nologin nginx-data
 
-RUN install -d -m 0755 -o root -g root \
-	/usr/local/etc/php-fpm.d
-RUN install -d -m 0755 -o nginx -g nginx \
-        /var/log/php-fpm /usr/share/nginx
+# Create nginx writable log dir
+RUN install -d -m 0755 -o nginx -g nginx /var/log/php-fpm
+
+# Create nginx working dir
+RUN install -d -m 0755 -o nginx -g nginx /usr/share/nginx
+WORKDIR /usr/share/nginx
 
 #Copy configuration files
 COPY --chown=root:root files/ /tmp/files
@@ -79,12 +82,8 @@ RUN set -eux; \
     cp -a /tmp/files/. /; \
     rm -rf /tmp/files;
 
-#Replace upstream default/working director
-RUN install -d -m 0644 -o nginx -g nginx /usr/share/nginx/
-WORKDIR /usr/share/nginx
-
 #Create cache dir
-RUN install -d -m 0644 -o nginx -g nginx /var/cache/php-fpm/
+RUN install -d -m 0755 -o nginx -g nginx /var/cache/php-fpm/
 
 # Expose PHP 8.4 using unversioned executable names
 RUN update-alternatives --set php /usr/bin/php8.4 && \
@@ -98,4 +97,3 @@ WORKDIR /usr/share/nginx
 
 ENTRYPOINT ["/usr/bin/supervisord", \
             "-c", "/etc/supervisor/supervisord.conf"]
-
