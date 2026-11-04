@@ -29,6 +29,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         php7.4-fpm \
         php7.4-cli \
+        php7.4-curl \
         php7.4-bcmath \
         php7.4-bz2 \
         php7.4-gd \
