@@ -58,6 +58,26 @@ container_exists() {
     docker container inspect "$NAME" >/dev/null 2>&1
 }
 
+create_missing_dir() {
+    local path="$1" mode="$2" owner="$3"
+
+    if [[ ! -d "$path" ]]; then
+        install -d -m "$mode" -o "$owner" -g "$owner" "$path"
+    fi
+}
+
+prepare_data_dirs() {
+    create_missing_dir "${PATH_BASE}/data/cron.d" 0755 root
+    create_missing_dir "${PATH_BASE}/data/fpm-cache" 0755 nginx
+
+    local dir
+    for dir in opcache session wsdlcache; do
+        if [[ -x "${PATH_BASE}/data/fpm-cache" ]]; then
+            create_missing_dir "${PATH_BASE}/data/fpm-cache/${dir}" 0700 nginx
+        fi
+    done
+}
+
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
@@ -72,6 +92,8 @@ build() {
 }
 
 run() {
+    prepare_data_dirs
+
     if container_exists; then
         docker rm -f "$NAME"
     fi
